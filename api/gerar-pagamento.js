@@ -7,7 +7,7 @@ mercadopago.configure({
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Método não permitido.');
 
-  const { valor, simbolo } = req.body; // simbolo é o token do jogador
+  const { valor, simbolo } = req.body;
   const valencia = parseFloat(valor);
 
   if (valencia < 1 || valencia > 1000 || !simbolo) {
