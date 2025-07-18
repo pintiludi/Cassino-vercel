@@ -7,7 +7,7 @@ export default async function handler(req, res) {
 
   const data = req.body;
 
-  console.log('🧠 Webhook recebido:', JSON.stringify(data, null, 2));
+  console.log('📡 Webhook recebido:', JSON.stringify(data, null, 2));
 
   if (data.type === 'payment' && data.action === 'payment.updated') {
     const idPagamento = data.data.id;
@@ -20,10 +20,14 @@ export default async function handler(req, res) {
       const simbolo = pagamento.response.metadata?.simbolo;
       const valor = pagamento.response.transaction_amount;
 
-      console.log('✅ Pagamento aprovado:', { simbolo, valor, status });
+      console.log('✅ Pagamento validado:', { simbolo, valor, status });
 
       if (status === 'approved' && simbolo) {
-        const jogadoresPath = path.join(process.cwd(), 'db', 'jogadores.json');
+        const dbPath = path.join(process.cwd(), 'db');
+        const jogadoresPath = path.join(dbPath, 'jogadores.json');
+
+        if (!fs.existsSync(dbPath)) fs.mkdirSync(dbPath);
+
         const jogadores = fs.existsSync(jogadoresPath)
           ? JSON.parse(fs.readFileSync(jogadoresPath, 'utf-8'))
           : {};
@@ -31,17 +35,18 @@ export default async function handler(req, res) {
         if (!jogadores[simbolo]) jogadores[simbolo] = { pontos: 0, historico: [] };
 
         const pontosRecebidos = valor * 2;
-
         jogadores[simbolo].pontos += pontosRecebidos;
         jogadores[simbolo].historico.push(`+${pontosRecebidos} pontos (R$${valor})`);
 
         fs.writeFileSync(jogadoresPath, JSON.stringify(jogadores, null, 2));
+
+        console.log('✅ Pontos adicionados com sucesso!');
       }
 
       return res.status(200).end('OK');
-    } catch (e) {
-      console.error('❌ ERRO no processamento do pagamento:', e);
-      return res.status(500).end('Erro ao processar pagamento');
+    } catch (erro) {
+      console.error('❌ Erro ao processar pagamento:', erro);
+      return res.status(500).end('Erro interno no servidor');
     }
   }
 
