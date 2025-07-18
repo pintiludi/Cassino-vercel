@@ -1,13 +1,13 @@
-const mercadopago = require('mercadopago');
+import mercadopago from 'mercadopago';
 
 mercadopago.configure({
   access_token: process.env.MP_TOKEN
 });
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Método não permitido.');
 
-  const { valor, simbolo } = req.body;
+  const { valor, simbolo } = req.body; // simbolo é o token do jogador
   const valencia = parseFloat(valor);
 
   if (valencia < 1 || valencia > 1000 || !simbolo) {
@@ -17,10 +17,15 @@ module.exports = async (req, res) => {
   try {
     const pagamento = {
       transaction_amount: valencia,
-      description: `Comprar pontos para token ${simbolo}`,
+      description: `Compra de pontos para token ${simbolo}`,
       payment_method_id: 'pix',
-      payer: { email: 'comprador@email.com' },
-      metadata: { simbolo }
+      payer: {
+        email: 'comprador@email.com'
+      },
+
+      metadata: {
+        simbolo: simbolo
+      }
     };
 
     const response = await mercadopago.payment.create(pagamento);
@@ -31,7 +36,7 @@ module.exports = async (req, res) => {
       qr: ponto.point_of_interaction.transaction_data.qr_code_base64
     });
   } catch (error) {
-    console.error("Erro no servidor:", error.message);
+    console.error(error);
     res.status(500).send('Erro ao criar pagamento');
   }
-};
+}
