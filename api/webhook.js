@@ -2,52 +2,54 @@ import fs from 'fs';
 import path from 'path';
 import mercadopago from 'mercadopago';
 
+mercadopago.configure({
+  access_token: process.env.MP_TOKEN
+});
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end('Método não permitido');
 
   const data = req.body;
 
-  console.log('📡 Webhook recebido:', JSON.stringify(data, null, 2));
-
   if (data.type === 'payment' && data.action === 'payment.updated') {
     const idPagamento = data.data.id;
 
+    let pagamento;
+
     try {
-      mercadopago.configure({ access_token: process.env.MP_TOKEN });
+      pagamento = await mercadopago.payment.findById(idPagamento);
 
-      const pagamento = await mercadopago.payment.findById(idPagamento);
-      const status = pagamento.response.status;
-      const simbolo = pagamento.response.metadata?.simbolo;
-      const valor = pagamento.response.transaction_amount;
-
-      console.log('✅ Pagamento validado:', { simbolo, valor, status });
-
-      if (status === 'approved' && simbolo) {
-        const dbPath = path.join(process.cwd(), 'db');
-        const jogadoresPath = path.join(dbPath, 'jogadores.json');
-
-        if (!fs.existsSync(dbPath)) fs.mkdirSync(dbPath);
-
-        const jogadores = fs.existsSync(jogadoresPath)
-          ? JSON.parse(fs.readFileSync(jogadoresPath, 'utf-8'))
-          : {};
-
-        if (!jogadores[simbolo]) jogadores[simbolo] = { pontos: 0, historico: [] };
-
-        const pontosRecebidos = valor * 2;
-        jogadores[simbolo].pontos += pontosRecebidos;
-        jogadores[simbolo].historico.push(`+${pontosRecebidos} pontos (R$${valor})`);
-
-        fs.writeFileSync(jogadoresPath, JSON.stringify(jogadores, null, 2));
-
-        console.log('✅ Pontos adicionados com sucesso!');
+      if (!pagamento || !pagamento.response) {
+        console.log('❌ Pagamento inválido ou não encontrado');
+        return res.status(200).end('Pagamento não encontrado');
       }
 
-      return res.status(200).end('OK');
-    } catch (erro) {
-      console.error('❌ Erro ao processar pagamento:', erro);
-      return res.status(500).end('Erro interno no servidor');
+    } catch (e) {
+      console.error('❌ Erro ao buscar pagamento:', e);
+      return res.status(200).end('Erro ao buscar pagamento');
     }
+
+    const status = pagamento.response.status;
+    const simbolo = pagamento.response.metadata?.simbolo;
+    const valor = pagamento.response.transaction_amount;
+
+    if (status === 'approved' && simbolo) {
+      const jogadoresPath = path.join(process.cwd(), 'db', 'jogadores.json');
+      const jogadores = fs.existsSync(jogadoresPath)
+        ? JSON.parse(fs.readFileSync(jogadoresPath, 'utf-8'))
+        : {};
+
+      if (!jogadores[simbolo]) jogadores[simbolo] = { pontos: 0, historico: [] };
+
+      const pontosRecebidos = valor * 2;
+      jogadores[simbolo].pontos += pontosRecebidos;
+      jogadores[simbolo].historico.push(`+${pontosRecebidos} pontos (R$${valor})`);
+
+      fs.writeFileSync(jogadoresPath, JSON.stringify(jogadores, null, 2));
+
+      console.log(`✅ ${pontosRecebidos} pontos adicionados para ${simbolo}`);
+    }
+    return res.status(200).end('OK');
   }
 
   return res.status(200).end('Ignorado');
