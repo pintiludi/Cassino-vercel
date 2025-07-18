@@ -1,8 +1,12 @@
 {
-  "name": "Cassino-vercel",
+  "name": "cassino-vercel",
   "version": "1.0.0",
-  "type": "module",
+  "description": "Cassino com integração Mercado Pago",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
-    "mercadopago": "^1.5.18"
+    "mercadopago": "^1.5.13"
   }
 }
