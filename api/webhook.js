@@ -7,7 +7,7 @@ export default async function handler(req, res) {
 
   const data = req.body;
 
-  if (data.type === 'payment' && data.action === 'payment.created') {
+  if (data.type === 'payment') {
     const idPagamento = data.data.id;
 
     try {
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
       const pagamento = await mercadopago.payment.findById(idPagamento);
       const status = pagamento.response.status;
-      const simbolo = pagamento.response.metadata?.simbolo; 
+      const simbolo = pagamento.response.metadata?.simbolo;
       const valor = pagamento.response.transaction_amount;
 
       if (status === 'approved' && simbolo) {
@@ -27,7 +27,6 @@ export default async function handler(req, res) {
         if (!jogadores[simbolo]) jogadores[simbolo] = { pontos: 0, historico: [] };
 
         const pontosRecebidos = valor * 2;
-
         jogadores[simbolo].pontos += pontosRecebidos;
         jogadores[simbolo].historico.push(`+${pontosRecebidos} pontos (R$${valor})`);
 
