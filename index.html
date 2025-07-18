@@ -5,10 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Cassino Pix FIXO 🔥</title>
   <style>
-    body { background: #000; color: #0f0; font-family: sans-serif; text-align: center; padding: 20px; }
-    button { padding: 10px 20px; margin: 5px; font-size: 18px; cursor: pointer; background-color: #111; border: 1px solid #0f0; color: #0f0; border-radius: 8px; }
-    .token-area, .saldo-area { margin: 15px 0; font-size: 18px; }
-    img { margin-top: 15px; }
+    body {
+      background: #000;
+      color: #0f0;
+      font-family: monospace;
+      text-align: center;
+      padding: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 18px;
+      cursor: pointer;
+      background-color: #111;
+      border: 1px solid #0f0;
+      color: #0f0;
+      border-radius: 8px;
+    }
+    .token-area, .saldo-area {
+      margin: 15px 0;
+      font-size: 18px;
+    }
+    img {
+      margin-top: 15px;
+    }
   </style>
 </head>
 <body>
@@ -43,30 +63,6 @@
       return token;
     }
 
-    function gerarPagamento(valor) {
-      const token = getToken();
-      fetch('/api/gerar-pagamento', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ valencia: valor, simbolo: token })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.link && data.qr) {
-          document.getElementById("pagamento").innerHTML = `
-            <p><strong>Pagamento de R$${valor}</strong></p>
-            <a href="${data.link}" target="_blank">🔗 Pagar Agora</a><br>
-            <img src="${data.qr}" width="200"/>
-          `;
-        } else {
-          document.getElementById("pagamento").innerHTML = `<p style="color:red;">Erro ao gerar pagamento</p>`;
-        }
-      })
-      .catch(() => {
-        document.getElementById("pagamento").innerHTML = `<p style="color:red;">Erro de conexão</p>`;
-      });
-    }
-
     function verSaldo() {
       const token = getToken();
       fetch("/jogadores.json")
@@ -79,6 +75,31 @@
         });
     }
 
+    function comprar(valorEscolhido) {
+      const simbolo = getToken();
+
+      fetch('/api/gerar-pagamento', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ valor: valorEscolhido, simbolo })
+      })
+      .then(res => res.json())
+      .then(dados => {
+        if (dados.link && dados.qr) {
+          document.getElementById("pagamento").innerHTML = `
+            <p><strong>Pagamento de R$${valorEscolhido}</strong></p>
+            <a href="${dados.link}" target="_blank">🔗 Pagar Agora</a><br>
+            <img src="${dados.qr}" width="200"/>
+          `;
+        } else {
+          document.getElementById("pagamento").innerHTML = `<p style="color:red;">Erro ao gerar pagamento</p>`;
+        }
+      })
+      .catch(() => {
+        document.getElementById("pagamento").innerHTML = `<p style="color:red;">Erro de conexão com servidor</p>`;
+      });
+    }
+
     document.getElementById("token").innerText = getToken();
     verSaldo();
 
@@ -86,7 +107,7 @@
     valoresFixos.forEach(v => {
       const btn = document.createElement("button");
       btn.textContent = `💵 R$${v}`;
-      btn.onclick = () => gerarPagamento(v);
+      btn.onclick = () => comprar(v);
       div.appendChild(btn);
     });
   </script>
