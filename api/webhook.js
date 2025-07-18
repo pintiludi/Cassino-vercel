@@ -7,7 +7,9 @@ export default async function handler(req, res) {
 
   const data = req.body;
 
-  if (data.type === 'payment') {
+  console.log('🧠 Webhook recebido:', JSON.stringify(data, null, 2));
+
+  if (data.type === 'payment' && data.action === 'payment.updated') {
     const idPagamento = data.data.id;
 
     try {
@@ -18,6 +20,8 @@ export default async function handler(req, res) {
       const simbolo = pagamento.response.metadata?.simbolo;
       const valor = pagamento.response.transaction_amount;
 
+      console.log('✅ Pagamento aprovado:', { simbolo, valor, status });
+
       if (status === 'approved' && simbolo) {
         const jogadoresPath = path.join(process.cwd(), 'db', 'jogadores.json');
         const jogadores = fs.existsSync(jogadoresPath)
@@ -27,6 +31,7 @@ export default async function handler(req, res) {
         if (!jogadores[simbolo]) jogadores[simbolo] = { pontos: 0, historico: [] };
 
         const pontosRecebidos = valor * 2;
+
         jogadores[simbolo].pontos += pontosRecebidos;
         jogadores[simbolo].historico.push(`+${pontosRecebidos} pontos (R$${valor})`);
 
@@ -35,7 +40,7 @@ export default async function handler(req, res) {
 
       return res.status(200).end('OK');
     } catch (e) {
-      console.error(e);
+      console.error('❌ ERRO no processamento do pagamento:', e);
       return res.status(500).end('Erro ao processar pagamento');
     }
   }
