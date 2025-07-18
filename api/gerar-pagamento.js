@@ -1,40 +1,39 @@
-import fs from 'fs';
-import path from 'path';
+import mercadopago from 'mercadopago';
+
+mercadopago.configure({
+  access_token: process.env.MP_TOKEN
+});
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).send('Método não permitido');
+  if (req.method !== 'POST') return res.status(405).send('Método não permitido.');
+
+  const { valor, simbolo } = req.body;
+  const valencia = parseFloat(valor);
+
+  if (valencia < 1 || valencia > 1000 || !simbolo) {
+    return res.status(400).send('Valor ou token inválido');
+  }
 
   try {
-    const evento = req.body;
-    if (evento.type === 'payment' && evento.data?.id) {
-      const paymentID = evento.data.id;
-      const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentID}`, {
-        headers: { Authorization: `Bearer ${process.env.MP_TOKEN}` }
-      });
-      const pagamento = await response.json();
-      if (pagamento.status === 'approved') {
-        const valorPago = pagamento.transaction_amount;
-        const token = pagamento.metadata?.token;
-        if (!token) return res.status(400).send('Token ausente');
+    const pagamento = {
+      transaction_amount: valencia,
+      description: `Comprar pontos para token ${simbolo}`,
+      payment_method_id: 'pix',
+      payer: {
+        email: 'comprador@email.com'
+      },
+      metadata: { simbolo }
+    };
 
-        const filePath = path.join(process.cwd(), 'public', 'jogadores.json');
-        let jogadores = {};
-        if (fs.existsSync(filePath)) {
-          jogadores = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        }
+    const response = await mercadopago.payment.create(pagamento);
+    const ponto = response.body;
 
-        const pontosGanho = valorPago * 2;
-        if (!jogadores[token]) jogadores[token] = 0;
-        jogadores[token] += pontosGanho;
-        fs.writeFileSync(filePath, JSON.stringify(jogadores, null, 2));
-
-        return res.status(200).send('Saldo atualizado com sucesso');
-      }
-    }
-
-    res.status(200).send('Evento ignorado');
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Erro interno');
+    res.status(200).json({
+      link: ponto.point_of_interaction.transaction_data.ticket_url,
+      qr: ponto.point_of_interaction.transaction_data.qr_code_base64
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Erro ao criar pagamento');
   }
 }
