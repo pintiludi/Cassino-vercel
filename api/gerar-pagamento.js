@@ -1,42 +1,18 @@
+
+
 import mercadopago from 'mercadopago';
 
-mercadopago.configure({
-  access_token: process.env.MP_TOKEN
-});
+mercadopago.configure({ access_token: process.env.MERCADO_PAGO_TOKEN, });
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).send('Método não permitido.');
+export default async function handler(req, res) { if (req.method !== 'POST') return res.status(405).end('Method Not Allowed');
 
-  const { valor, simbolo } = req.body;
-  const valencia = parseFloat(valor);
+const { valor, usuario, simbolo } = req.body;
 
-  if (valencia < 1 || valencia > 1000 || !simbolo) {
-    return res.status(400).send('Valor ou token inválido');
-  }
+if (!valor || !usuario || !simbolo) { return res.status(400).json({ error: 'Dados incompletos.' }); }
 
-  try {
-    const pagamento = {
-      transaction_amount: valencia,
-      description: `Compra de pontos para token ${simbolo}`,
-      payment_method_id: 'pix',
-      payer: {
-        email: 'comprador@email.com'
-      },
+try { const preference = await mercadopago.preferences.create({ items: [ { title: Depósito para ${usuario}, quantity: 1, currency_id: 'BRL', unit_price: parseFloat(valor), }, ], metadata: { usuario, simbolo, }, notification_url: ${process.env.URL_BASE}/api/webhook, });
 
-      metadata: {
-        simbolo: simbolo
-      }
-    };
+res.status(200).json({ url: preference.body.init_point });
 
-    const response = await mercadopago.payment.create(pagamento);
-    const ponto = response.body;
+} catch (error) { console.error('Erro ao gerar pagamento:', error); res.status(500).json({ error: 'Erro ao gerar pagamento' }); } }
 
-    res.status(200).json({
-      link: ponto.point_of_interaction.transaction_data.ticket_url,
-      qr: ponto.point_of_interaction.transaction_data.qr_code_base64
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).send('Erro ao criar pagamento');
-  }
-}
