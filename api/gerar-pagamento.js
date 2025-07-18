@@ -4,7 +4,7 @@ mercadopago.configure({
   access_token: process.env.MP_TOKEN
 });
 
-module.exports = async function handler(req, res) {
+module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).send('Método não permitido.');
 
   const { valor, simbolo } = req.body;
@@ -19,9 +19,7 @@ module.exports = async function handler(req, res) {
       transaction_amount: valencia,
       description: `Comprar pontos para token ${simbolo}`,
       payment_method_id: 'pix',
-      payer: {
-        email: 'comprador@email.com'
-      },
+      payer: { email: 'comprador@email.com' },
       metadata: { simbolo }
     };
 
@@ -33,7 +31,7 @@ module.exports = async function handler(req, res) {
       qr: ponto.point_of_interaction.transaction_data.qr_code_base64
     });
   } catch (error) {
-    console.error(error);
+    console.error("Erro no servidor:", error.message);
     res.status(500).send('Erro ao criar pagamento');
   }
 };
