@@ -8,24 +8,35 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Método não permitido.');
 
   const { valor, simbolo } = req.body;
+  const valencia = parseFloat(valor);
 
-  if (!valor || !simbolo) return res.status(400).send('Dados inválidos');
+  if (valencia < 1 || valencia > 1000 || !simbolo) {
+    return res.status(400).send('Valor ou token inválido');
+  }
 
   try {
-    const pagamento = await mercadopago.payment.create({
-      transaction_amount: Number(valor),
-      description: `Compra de pontos para ${simbolo}`,
+    const pagamento = {
+      transaction_amount: valencia,
+      description: `Compra de pontos para token ${simbolo}`,
       payment_method_id: 'pix',
-      payer: { email: 'comprador@email.com' },
-      metadata: { simbolo }
+      notification_url: "https://cassino-vercel.vercel.app/api/webhook",
+      payer: {
+        email: 'comprador@email.com'
+      },
+      metadata: {
+        simbolo: simbolo
+      }
+    };
+
+    const response = await mercadopago.payment.create(pagamento);
+    const ponto = response.body;
+
+    res.status(200).json({
+      link: ponto.point_of_interaction.transaction_data.ticket_url,
+      qr: ponto.point_of_interaction.transaction_data.qr_code_base64
     });
-
-    const link = pagamento.body.point_of_interaction.transaction_data.ticket_url;
-    const qr = pagamento.body.point_of_interaction.transaction_data.qr_code_base64;
-
-    res.status(200).json({ link, qr });
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error(error);
     res.status(500).send('Erro ao criar pagamento');
   }
 }
